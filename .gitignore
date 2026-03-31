@@ -1,1 +1,5 @@
 output
+utils.ipynb
+__pycache__/
+*.py[cod]
+.DS_Store
