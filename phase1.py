@@ -1,5 +1,10 @@
+"""
+Reading, writing obj files and some util functions like vertex_to_triangles or build_face_adjacency
+"""
+
 import numpy as np 
 from collections import defaultdict
+
 
 def load_obj(file_path):
     "Get Vertices and triangles from a .obj file"
@@ -8,7 +13,7 @@ def load_obj(file_path):
 
     with open(file_path, 'r') as f:
         for line in f:
-            if line.startswith('v '):  # vertex ler .oj dosylaarında "v " ile başlar
+            if line.startswith('v '):  
                 parts = line.strip().split()
                 v = list(map(float, parts[1:4]))
                 vertices.append(v)
@@ -25,6 +30,8 @@ def load_obj(file_path):
                 faces.append(face)
 
     return (np.array(vertices), np.array(faces))
+
+
 
 def write_obj(output_file, vertices, faces):
     with open(output_file, 'w') as f:

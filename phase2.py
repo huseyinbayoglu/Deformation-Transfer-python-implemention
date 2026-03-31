@@ -4,12 +4,7 @@ from phase1 import load_obj
 
 def calculate_fourth_vertex(vertices, faces):
     """
-    Her üçgen için normal yönünde sanal 4. vertex hesaplar (Equation 1).
-
-    vertices: (N, 3) — tüm mesh vertex'leri
-    faces: (F, 3) — üçgen indeksleri
-
-    return: (F, 3) — her üçgen için 4. vertex koordinatları
+    For every triangle, calculates 4th corner (Equation1)
     """
     v1 = vertices[faces[:, 0]]  # (F, 3)
     v2 = vertices[faces[:, 1]]  # (F, 3)
@@ -24,31 +19,33 @@ def calculate_fourth_vertex(vertices, faces):
 
 def get_V(vertices, faces):
     """
-    V = [v2-v1, v3-v1, v4-v1] matrisini her üçgen için hesaplar (Equation 3).
+    V = [v2-v1, v3-v1, v4-v1]  (Equation 3).
 
-    return: (F, 3, 3) — her üçgen için 3x3 V matrisi
+    return: (F, 3, 3) — 3x3 matris for every triangle/face
     """
     v1 = vertices[faces[:, 0]]  # (F, 3)
     v2 = vertices[faces[:, 1]]
     v3 = vertices[faces[:, 2]]
     v4 = calculate_fourth_vertex(vertices, faces)
 
-    # V sütunları: (v2-v1), (v3-v1), (v4-v1)
-    # V[i] shape (3,3): her satır bir sütun vektörü (transpose ile düzeltiriz)
+    # V columns: (v2-v1), (v3-v1), (v4-v1)
+    # V[i] shape (3,3)
     V = np.stack([v2 - v1, v3 - v1, v4 - v1], axis=2)  # (F, 3, 3)
     return V
 
 
 def compute_source_deformations(ref_vertices, ref_faces, def_vertices):
     """
-    Source mesh'in reference → deformed affine dönüşümlerini hesaplar.
+    Computes the affine transformations mapping the source mesh from the 
+    reference to the deformed configuration.
+
     Q = Ṽ V⁻¹  (Equation 4)
 
-    ref_vertices: (N, 3) — reference mesh vertex'leri
-    ref_faces: (F, 3) — üçgen indeksleri (reference ve deformed aynı topoloji)
-    def_vertices: (N, 3) — deformed mesh vertex'leri
+    ref_vertices: (N, 3)  vertices of the reference mesh  
+    ref_faces: (F, 3)  triangle indices 
+    def_vertices: (N, 3)  vertices of the deformed mesh  
 
-    return: (F, 3, 3) — her üçgen için 3x3 dönüşüm matrisi S
+    return: (F, 3, 3)  a 3×3 transformation matrix S for each triangle
     """
     V = get_V(ref_vertices, ref_faces)          # (F, 3, 3)
     V_tilde = get_V(def_vertices, ref_faces)    # (F, 3, 3)
