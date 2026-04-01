@@ -74,9 +74,7 @@ def load_config(config_path):
     return config
 
 
-# ─────────────────────────────────────────────
 # Correspondence I/O
-# ─────────────────────────────────────────────
 
 def save_correspondence(correspondence, path):
     arr = np.array(correspondence, dtype=np.int32)
@@ -194,3 +192,4 @@ if __name__ == "__main__":
     main()
 
 # python3 main.py --config source_obj/markers-horse-camel.yml  
+# python3 main.py --config source_obj/markers-cat-lion.yml  

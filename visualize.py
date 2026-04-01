@@ -1,10 +1,6 @@
 """
 Deformation Transfer sonuçlarını 3D görselleştirir.
 
-Kullanım:
-  python visualize.py --config source_obj/markers-cat-lion.yml --output-dir output
-  python visualize.py --config source_obj/markers-cat-lion.yml --output-dir output --pose 1
-  python visualize.py --config source_obj/markers-cat-lion.yml --output-dir output --all
 """
 
 import os
@@ -88,7 +84,7 @@ def show_all_poses(source_ref_path, source_poses, target_ref_path, tgt_ref_faces
 
     n_rows = 2
 
-    pl = pv.Plotter(shape=(n_rows, n_cols), window_size=(2600, 750 * n_rows))
+    pl = pv.Plotter(shape=(n_rows, n_cols), window_size=(2900, 750 * n_rows))
 
     src_ref_v, src_ref_f = load_obj(source_ref_path)
     tgt_ref_v, _ = load_obj(target_ref_path)
@@ -184,4 +180,5 @@ def main():
 if __name__ == "__main__":
     main()
 
+# python3 visualize.py --config source_obj/markers-horse-camel.yml --all
 # python3 visualize.py --config source_obj/markers-cat-lion.yml --all

@@ -1,15 +1,16 @@
 """
 Phase 3: Correspondence (Section 5)
 
-Source mesh'i target mesh'e doğru deforme ederek üçgen eşleştirmesi (correspondence) çıkarır.
-Kullanıcının verdiği marker noktalarıyla kontrol edilir.
+"Extracts triangle correspondences using the markers provided by the user."
+
 
 Objective: min wS*ES + wI*EI + wC*EC
   subject to: ṽ_sk = mk  (marker constraints)
 
-ES = smoothness  (Eq 11) — komşu üçgenlerin dönüşümleri benzer olmalı
-EI = identity    (Eq 12) — dönüşümler identity'den çok sapmamalı
-EC = closest pt  (Eq 13) — vertex'ler target mesh'e yakın olmalı
+ES = smoothness (Eq. 11) — transformations of neighboring triangles should be similar
+EI = identity (Eq. 12) — transformations should not deviate much from the identity
+EC = closest pt (Eq. 13) — vertices should be close to the target mesh
+
 """
 
 import numpy as np
@@ -17,25 +18,26 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import splu
 from scipy.spatial import cKDTree
 
-from phase1 import load_obj, build_edge_to_faces, build_face_adjacency, remove_duplicates
+from phase1 import build_edge_to_faces, build_face_adjacency, remove_duplicates
 from phase2 import get_V
 
 
 
 
 def compute_face_normals(vertices, faces):
-    """Her üçgenin normal vektörünü hesaplar. (F, 3)"""
+    """Calculate normal vector for all triangles (F, 3)"""
     v1 = vertices[faces[:, 0]]
     v2 = vertices[faces[:, 1]]
     v3 = vertices[faces[:, 2]]
     normals = np.cross(v2 - v1, v3 - v1)
     norms = np.linalg.norm(normals, axis=1, keepdims=True)
     norms = np.maximum(norms, 1e-12)
+    # normalizing
     return normals / norms
 
 
-def compute_vertex_normals(vertices, faces):
-    """Her vertex'in normal vektörünü hesaplar (komşu face normal'lerinin ortalaması). (N, 3)"""
+def compute_vertex_normals(vertices, faces): # ?
+    """Calculate normal vector for all vertices (Average of the neighbor normals). (N, 3)"""
     face_normals = compute_face_normals(vertices, faces)
     vertex_normals = np.zeros_like(vertices)
     for i in range(3):
@@ -48,18 +50,20 @@ def compute_vertex_normals(vertices, faces):
 def find_closest_valid_points(source_deformed_verts, source_vertex_normals,
                               target_verts, target_vertex_normals):
     """
-    Her source vertex için target mesh üzerindeki en yakın geçerli noktayı bulur (Eq 13).
-    Geçerlilik: normal'ler arası açı < 90° (dot product > 0).
+    For each source vertex, finds the closest valid point on the target mesh (Eq. 13).
+    Validity: angle between normals < 90° (dot product > 0).
 
-    return: (N, 3) closest points, geçersizler orijinal pozisyonda kalır.
+    return: (N, 3) closest points; invalid ones remain at their original positions.
+
     """
     tree = cKDTree(target_verts)
 
-    # En yakın 10 adayı bul, normal kontrolü yap
+    # Find closest 10 candidates and control validity
     k = min(10, len(target_verts))
     dists, idxs = tree.query(source_deformed_verts, k=k)
 
     n = len(source_deformed_verts)
+    # for default values
     closest = source_deformed_verts.copy()
 
     for i in range(n):
@@ -67,19 +71,18 @@ def find_closest_valid_points(source_deformed_verts, source_vertex_normals,
         for j in range(k):
             tgt_idx = idxs[i, j]
             tgt_n = target_vertex_normals[tgt_idx]
-            if np.dot(src_n, tgt_n) > 0:  # < 90°
+            if np.dot(src_n, tgt_n) > 0:  # < 90° ns​⋅nt​=∣ns​∣∣nt​∣cos(θ)
                 closest[i] = target_verts[tgt_idx]
                 break
 
     return closest
 
 
-# ─────────────────────────────────────────────
-# Sparse sistem oluşturma
-# ─────────────────────────────────────────────
+
+
+
 
 def build_adjacency_pairs(adjacency):
-    """Komşuluk listesinden (tri_i, tri_j) çiftlerini flat array olarak döndürür."""
     pairs_i = []
     pairs_j = []
     for i, neighbors in enumerate(adjacency):
@@ -92,7 +95,6 @@ def build_adjacency_pairs(adjacency):
 def build_system(source_faces, V_inv, adjacency, n_verts, n_faces,
                  wS, wI, wC, marker_dict, closest_points=None):
     """
-    Sparse matris A ve rhs vektörleri b_x, b_y, b_z'yi oluşturur.
 
     Lineer sistem: min ||Ax - b||^2  →  A^T A x = A^T b
 
@@ -104,18 +106,21 @@ def build_system(source_faces, V_inv, adjacency, n_verts, n_faces,
 
     return: A (sparse), b (3, n_rows)
     """
+    # number of columns
     n_unknowns = n_verts + n_faces
+
     adj_i, adj_j = build_adjacency_pairs(adjacency)
     n_adj_pairs = len(adj_i)
 
-    # Satır sayısını hesapla
+    # Calculate total number of rows
     n_smooth_rows = n_adj_pairs * 3          # ES: her çift × 3 sütun
     n_identity_rows = n_faces * 3            # EI: her üçgen × 3 sütun
     n_closest_rows = n_verts if (wC > 0 and closest_points is not None) else 0
     n_marker_rows = len(marker_dict)
+    # Total number of rows
     n_rows = n_smooth_rows + n_identity_rows + n_closest_rows + n_marker_rows
 
-    # COO format için (row, col, val) listeleri
+    # (row, col, val) lists for COO format
     # Her ES satırı en fazla 8 entry, her EI satırı 4, EC 1, marker 1
     max_nnz = n_smooth_rows * 8 + n_identity_rows * 4 + n_closest_rows + n_marker_rows
     row_idx = np.zeros(max_nnz, dtype=np.int32)
@@ -241,13 +246,13 @@ def build_system(source_faces, V_inv, adjacency, n_verts, n_faces,
 
 
 
-
+# Solving the equation system
 def solve_system(A, b, n_verts, n_faces):
     """
-    A^T A x = A^T b  normal denklemlerini çözer.
+    solves normal denklems A^T A x = A^T b  
     LU faktorizasyonu bir kez yapılır, 3 boyut (x,y,z) için backsubstitution.
 
-    return: (n_verts + n_faces, 3) — çözülen vertex pozisyonları
+    return: (n_verts + n_faces, 3) — solved vertex positions
     """
     ATA = (A.T @ A).tocsc()
     lu = splu(ATA)
@@ -260,10 +265,8 @@ def solve_system(A, b, n_verts, n_faces):
     return result
 
 
-# ─────────────────────────────────────────────
-# Centroid eşleştirme
-# ─────────────────────────────────────────────
 
+# Correspondence
 def match_triangles_by_centroid(deformed_source_verts, source_faces,
                                 target_verts, target_faces):
     """
@@ -334,14 +337,14 @@ def compute_correspondence(source_verts, source_faces,
                         marker_dict=marker_dict, closest_points=None)
     deformed = solve_system(A, b, n_verts, n_faces)
     deformed_verts = deformed[:n_verts]
-    print(f"  Faz 1 tamamlandı.")
+    print(f"  Phase 1 is complete.")
 
     # ═══ FAZ 2: wC'yi kademeli artır ═══
     target_vnormals = compute_vertex_normals(target_verts, target_faces)
-    wC_steps = [1.0, 10.0, 100.0, 5000.0]
+    wC_steps = [1.0, 10.0, 100.0, 500, 1000, 2500,5000.0]
 
     for step, wC in enumerate(wC_steps):
-        print(f"Faz 2 adım {step + 1}/{len(wC_steps)}: wC={wC}")
+        print(f"Phase 2 step {step + 1}/{len(wC_steps)}: wC={wC}")
 
         # Source vertex normal'lerini güncelle (deforme mesh'ten)
         source_vnormals = compute_vertex_normals(deformed_verts, source_faces)
@@ -358,7 +361,7 @@ def compute_correspondence(source_verts, source_faces,
                             marker_dict=marker_dict, closest_points=closest)
         deformed = solve_system(A, b, n_verts, n_faces)
         deformed_verts = deformed[:n_verts]
-        print(f"  Adım {step + 1} tamamlandı.")
+        print(f"  Step {step + 1} complete.")
 
     # ═══ Centroid eşleştirme ═══
     print("Triangle correspondence hesaplanıyor...")
@@ -366,6 +369,6 @@ def compute_correspondence(source_verts, source_faces,
         deformed_verts, source_faces,
         target_verts, target_faces
     )
-    print(f"  {len(correspondence)} üçgen eşleştirildi.")
+    print(f"  {len(correspondence)} triangle matched.")
 
     return correspondence, deformed_verts
