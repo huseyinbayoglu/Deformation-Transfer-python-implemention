@@ -95,7 +95,7 @@ def main():
     parser = argparse.ArgumentParser(description="Deformation Transfer for Triangle Meshes")
     parser.add_argument('--config', required=True, help='YAML config file (markers-*.yml)')
     parser.add_argument('--correspondence', default=None,
-                        help='Calculated correspondence (.npy) file.')
+                        help='Calculated correspondence (.npy) file. If not provided the correspondence will be calculated.')
     parser.add_argument('--output-dir', default='output', help='Çıktı klasörü')
     parser.add_argument('--save-correspondence', default=None,
                         help='Hesaplanan correspondence\'ı kaydet (.npy)')
@@ -104,8 +104,8 @@ def main():
     timer = Timer()
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # ═══ 1. Mesh'leri yükle ═══
-    timer.start("Mesh yükleme")
+
+    timer.start("Loading mesh")
     config = load_config(args.config)
 
     src_ref_verts, src_ref_faces = load_obj(config['source_reference'])
@@ -120,16 +120,16 @@ def main():
 
     print(f"  Source: {len(src_ref_verts)} vertices, {len(src_ref_faces)} faces, {len(source_def_verts_list)} poses")
     print(f"  Target: {len(tgt_ref_verts)} vertices, {len(tgt_ref_faces)} faces")
-    print(f"  Markers: {len(config['markers'])} çift")
+    print(f"  Markers: {len(config['markers'])} pair")
     timer.stop()
 
     # ═══ 2. Correspondence ═══
     if args.correspondence and os.path.exists(args.correspondence):
-        timer.start("Correspondence yükleme (dosyadan)")
+        timer.start("Correspondence loading")
         correspondence = load_correspondence(args.correspondence)
         timer.stop()
     else:
-        timer.start("Correspondence hesaplama (Phase 3)")
+        timer.start("Correspondence calculate (Phase 3)")
         correspondence, _ = compute_correspondence(
             src_ref_verts, src_ref_faces,
             tgt_ref_verts, tgt_ref_faces,
