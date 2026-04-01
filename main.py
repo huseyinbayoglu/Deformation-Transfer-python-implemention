@@ -79,25 +79,23 @@ def load_config(config_path):
 def save_correspondence(correspondence, path):
     arr = np.array(correspondence, dtype=np.int32)
     np.save(path, arr)
-    print(f"Correspondence kaydedildi: {path}  ({len(correspondence)} çift)")
+    print(f"Correspondence is saved: {path}  ({len(correspondence)} pair)")
 
 
 def load_correspondence(path):
     arr = np.load(path)
     correspondence = list(map(tuple, arr.tolist()))
-    print(f"Correspondence yüklendi: {path}  ({len(correspondence)} çift)")
+    print(f"Correspondence is loaded: {path}  ({len(correspondence)} pair)")
     return correspondence
 
 
-# ─────────────────────────────────────────────
 # Main
-# ─────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="Deformation Transfer for Triangle Meshes")
-    parser.add_argument('--config', required=True, help='YAML config dosyası (markers-*.yml)')
+    parser.add_argument('--config', required=True, help='YAML config file (markers-*.yml)')
     parser.add_argument('--correspondence', default=None,
-                        help='Önceden hesaplanmış correspondence (.npy). Verilmezse hesaplanır.')
+                        help='Calculated correspondence (.npy) file.')
     parser.add_argument('--output-dir', default='output', help='Çıktı klasörü')
     parser.add_argument('--save-correspondence', default=None,
                         help='Hesaplanan correspondence\'ı kaydet (.npy)')
